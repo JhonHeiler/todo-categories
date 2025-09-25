@@ -1,0 +1,24 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Categorías</ion-title>
+    <ion-buttons slot="start"><ion-back-button defaultHref="/"></ion-back-button></ion-buttons>
+  </ion-toolbar>
+  
+</ion-header>
+
+<ion-content>
+  <ion-item>
+    <ion-input [(ngModel)]="newName" placeholder="Nueva categoría"></ion-input>
+    <ion-input [(ngModel)]="newColor" type="color" style="max-width:80px"></ion-input>
+    <ion-button (click)="add()">Agregar</ion-button>
+  </ion-item>
+
+  <ion-list>
+    <ion-item *ngFor="let c of (cats.list$ | async); trackBy: trackById">
+      <ion-avatar slot="start"><div [style.background]="c.color || '#cccccc'" style="width:40px;height:40px;border-radius:50%"></div></ion-avatar>
+      <ion-label>{{c.name}}</ion-label>
+      <ion-button fill="clear" (click)="rename(c.id, c.name)">Renombrar</ion-button>
+      <ion-button fill="clear" color="danger" (click)="remove(c.id)">Borrar</ion-button>
+    </ion-item>
+  </ion-list>
+</ion-content>

@@ -1,0 +1,33 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>To-Do</ion-title>
+    <ion-buttons slot="end"><ion-button routerLink="/categories">Categorías</ion-button></ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item>
+    <ion-input [(ngModel)]="newTitle" placeholder="Nueva tarea"></ion-input>
+    <ion-button (click)="add()">Agregar</ion-button>
+  </ion-item>
+
+  <ion-item>
+    <ion-label>Categoría</ion-label>
+    <ion-select [value]="selectedCategoryId" (ionChange)="onCategoryChange($event)">
+      <ion-select-option [value]="null">Todas</ion-select-option>
+      <ion-select-option *ngFor="let c of (cats.list$ | async)" [value]="c.id">{{c.name}}</ion-select-option>
+    </ion-select>
+  </ion-item>
+
+  <ion-button *ngIf="(ff.ready$ | async) && ff.getBoolean('feature_bulk_complete', false)" (click)="bulkComplete()">
+    Completar visibles
+  </ion-button>
+
+  <ion-list>
+    <ion-item *ngFor="let t of (list$ | async); trackBy: trackById">
+      <ion-checkbox [checked]="t.done" (ionChange)="toggle(t.id)"></ion-checkbox>
+      <ion-label class="ion-padding-start">{{t.title}}</ion-label>
+      <ion-button fill="clear" color="danger" (click)="remove(t.id)">Borrar</ion-button>
+    </ion-item>
+  </ion-list>
+</ion-content>
