@@ -1,91 +1,93 @@
 # todo-categories (Ionic + Angular + Cordova)
 
-App de To-Do con categorías, almacenamiento local (IndexedDB via @ionic/storage-angular) y feature flag con Firebase Remote Config (parámetro booleano: feature_bulk_complete).
+Aplicación To-Do con categorías, almacenamiento local y feature flag con Firebase Remote Config (parámetro booleano: feature_bulk_complete).
 
-## Características
-- CRUD de tareas y categorías; asignación y filtro por categoría.
-- Almacenamiento local (IndexedDB) usando @ionic/storage-angular.
-- Flag remoto con Firebase Remote Config para mostrar el botón “Completar visibles”.
-- Rendimiento: ChangeDetectionStrategy.OnPush, trackBy, listas reactivas.
-- Tests unitarios para servicios y un componente.
+## 1) Descripción
+- CRUD de tareas y categorías con filtro por categoría.
+- Persistencia local (IndexedDB vía `@ionic/storage-angular`).
+- Flag remota `feature_bulk_complete` que muestra el botón “Completar visibles”.
+- Semilla en el primer arranque: 3 categorías (Trabajo, Hogar, Estudio) y 4 tareas (2 completas).
 
-## Scripts
-- npm start: ejecutar en dev
-- npm run build: compilar web
-- npm test: correr unit tests (Karma/Jasmine)
-- npm run test:ci: ejecutar tests en headless (WSL/CI)
+## 2) Stack & arquitectura
+- Stack: Angular 20, Ionic 8 (standalone), Cordova, RxJS 7.8, AngularFire (`@angular/fire` app + remote-config).
+- Persistencia: `@ionic/storage-angular` (IndexedDB) envuelta por `StorageService`.
+- Arquitectura (servicios):
+  - `TaskService`, `CategoryService`: estado en memoria con `BehaviorSubject`, persistencia transparente.
+  - `FeatureFlagsService`: lectura de Remote Config con fallback seguro cuando no hay Firebase.
+  - `SeedService`: `APP_INITIALIZER` para sembrar datos una vez.
+- Páginas standalone (OnPush): `TasksPage`, `CategoriesPage`; routing con `provideRouter` y lazy `loadComponent`.
 
-## Configuración Firebase Remote Config
-1) Edita `src/environments/environment.ts` y `src/environments/environment.prod.ts` con tus credenciales de Firebase Web App (Consola Firebase → Configuración del proyecto → General → Tus apps)
-2) En Firebase Remote Config crea el parámetro booleano `feature_bulk_complete` (valor por defecto: false). Publica los cambios. La app hace fetch con `minimumFetchIntervalMillis = 0`.
+## 3) Cómo correr
+Requisitos: Node 20+, npm, (opcional) Ionic CLI.
 
-## Compilar Android solo con CLI
-1) Requisitos
-- Java JDK 17 o 21
-- Android SDK (sdkmanager y build-tools)
-- Node.js, npm, Ionic CLI y Cordova
-
-2) Configura sdk.dir en `local.properties` dentro de `android/` (Cordova lo generará en `platforms/android`, pero puedes crearlo en la raíz del SDK):
-
-```
-sdk.dir=/home/tuusuario/Android/Sdk
+```bash
+npm ci
+npm start
+# Abrir http://localhost:4200
 ```
 
-3) Instala paquetes del SDK
-
+Opcional (Ionic):
+```bash
+npm run ionic:serve
 ```
+
+WSL (Windows):
+```bash
+sudo apt update && sudo apt install -y openjdk-17-jdk
+npm ci
+npm start
+# Si no abre en localhost, usar http://wsl.localhost:4200
+```
+
+## 4) Firebase (Remote Config)
+1) Crea una Web App en Firebase Console → Configuración del proyecto → General → Tus apps y copia el `firebaseConfig`.
+2) Pega el objeto en `src/environments/environment.ts` y `environment.prod.ts` (clave `firebase`).
+3) En Remote Config crea el parámetro booleano `feature_bulk_complete` y Publica.
+
+Notas:
+- En desarrollo se usa `minimumFetchIntervalMillis = 0` para ver cambios al instante (solo demo).
+- Si Firebase no está configurado, el servicio retorna fallbacks y la app funciona sin llamadas remotas.
+
+## 5) Android (solo CLI)
+Requisitos: JDK 17, Android SDK (cmdline-tools, build-tools), Ionic/Cordova.
+
+Instalar/aceptar SDK (una vez):
+```bash
 sdkmanager --licenses
 sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 ```
 
-4) Añade plataforma Android (Cordova)
-
-```
-ionic cordova platform add android
-```
-
-5) Build Debug (CLI únicamente, sin Android Studio)
-
-```
-ionic cordova build android --debug
+Añadir plataforma (si no existe):
+```bash
+npx ionic cordova platform add android
 ```
 
-Salida: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`
-
-6) Build Release sin firmar
-
-```
-ionic cordova build android --release
+Debug APK:
+```bash
+npx ionic cordova build android --debug
+# platforms/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Salida: `platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk`
-
-7) Firma con apksigner
-- Genera/usa un keystore:
-
-```
-keytool -genkeypair -v -keystore my-release-key.keystore -alias todo -keyalg RSA -keysize 2048 -validity 10000
+Release APK sin firmar:
+```bash
+npx ionic cordova build android --release
+# platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
-- Firma y alinea:
-
+Firmado (zipalign → sign → verify):
+```bash
+keytool -genkeypair -v -keystore ~/.keystores/todo-categories.jks -alias todo-categories -keyalg RSA -keysize 2048 -validity 3650
+zipalign -v 4 platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk app-release-aligned.apk
+apksigner sign --ks ~/.keystores/todo-categories.jks --out app-release-signed.apk app-release-aligned.apk
+apksigner verify app-release-signed.apk
 ```
-apksigner sign --ks my-release-key.keystore --out app-release-signed.apk platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
-zipalign -v 4 app-release-signed.apk app-release-aligned.apk
-apksigner verify app-release-aligned.apk
-```
 
-## Obtener IPA vía GitHub Actions (macOS runner)
-1) Crea secretos del repositorio:
-- APPLE_CERTIFICATE_P12 (base64 del .p12)
-- APPLE_CERTIFICATE_PASSWORD
-- APPLE_TEAM_ID
-- APPLE_BUNDLE_ID (por ej. com.tuorg.todo)
-- APPLE_APPLEID (correo de Apple ID)
-- APPLE_APP_PASSWORD (App Specific Password)
+WSL recomendación: usar el SDK en Windows y ejecutar Cordova desde PowerShell para evitar problemas de USB/emulador. Si usas WSL, monta el SDK (ruta /mnt/c/...) y crea `platforms/android/local.properties` con `sdk.dir`.
 
-2) Workflow ejemplo `.github/workflows/ios.yml`:
+## 6) iOS (GitHub Actions)
+Requiere macOS runner. Secretos sugeridos: `APPLE_CERTIFICATE_P12`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_BUNDLE_ID`, `APPLE_APPLEID`, `APPLE_APP_PASSWORD`.
 
+Workflow mínimo (`.github/workflows/ios.yml`):
 ```yaml
 name: ios-build
 on: [workflow_dispatch]
@@ -96,166 +98,45 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm ci
-      - run: npm run build
+      - run: npm ci && npm run build
       - run: npm i -g ionic cordova-res cordova@12
       - run: ionic cordova platform add ios
-      - name: Import cert
-        run: |
-          CERT=cert.p12
-          echo "$APPLE_CERTIFICATE_P12" | base64 --decode > $CERT
-          security create-keychain -p "" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "" build.keychain
-          security import $CERT -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
-        env:
-          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      - name: Build iOS
+      - name: Build iOS (release)
         run: ionic cordova build ios --release
-      - name: Archive
-        run: |
-          cd platforms/ios
-          xcodebuild -workspace *.xcworkspace -scheme "App" -configuration Release -sdk iphoneos -archivePath build/app.xcarchive archive DEVELOPMENT_TEAM=$APPLE_TEAM_ID PRODUCT_BUNDLE_IDENTIFIER=$APPLE_BUNDLE_ID
-          xcodebuild -exportArchive -archivePath build/app.xcarchive -exportOptionsPlist ../../exportOptions.plist -exportPath build
-        env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_BUNDLE_ID: ${{ secrets.APPLE_BUNDLE_ID }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: platforms/ios/build/*.ipa
+      # Export/firmado requieren certificados y exportOptions.plist
 ```
 
-Nota: `exportOptions.plist` debe existir y especificar método (ad-hoc, app-store, etc.). Para publicación en App Store usa Transporter o fastlane.
+## 7) Rendimiento
+- Standalone + `ChangeDetectionStrategy.OnPush`.
+- `trackBy` en listas, flujos RxJS para evitar trabajo extra.
+- Preload de rutas; sin pipes pesadas en plantilla.
+- `minimumFetchIntervalMillis = 0` solo en desarrollo/demo.
 
-## WSL en Windows: ejecutar la app
-1) Instala dependencias en WSL
-
-```
-sudo apt update
-sudo apt install -y openjdk-17-jdk
-npm ci
-```
-
-2) Ejecuta en navegador
-
-# todo-categories (Ionic + Angular + Cordova)
-
-App de To-Do con categorías, almacenamiento local (IndexedDB via @ionic/storage-angular), feature flag opcional con Firebase Remote Config, y build Android por CLI.
-
-## Características
-- CRUD de tareas y categorías; asignación y filtro por categoría.
-- Almacenamiento local (IndexedDB) usando @ionic/storage-angular.
-- Flag remoto (opcional) con Firebase Remote Config para mostrar el botón “Completar visibles”.
-- Rendimiento: ChangeDetectionStrategy.OnPush, trackBy, listas reactivas.
-- Seed inicial (1ª vez): 3 categorías (Trabajo, Hogar, Estudio) y 4 tareas (2 completas).
-- Tests unitarios y configuración para WSL/CI con Puppeteer (headless, no-sandbox).
-
-## Scripts
-- npm start: ejecutar en dev (ng serve)
-- npm run build: compilar web (genera www/)
-- npm test: correr unit tests (Karma/Jasmine)
-- npm run test:ci: ejecutar tests en headless (WSL/CI)
-- ionic:serve / ionic:build: atajos para Ionic CLI si lo usas.
-
-## Firebase (opcional)
-- La app funciona sin credenciales: si `environment.firebase` contiene placeholders (TU_API_KEY, TU_PROYECTO, …), NO se inicializa Firebase y NO se hacen llamadas remotas. El botón “Completar visibles” dependerá de la flag y puede no mostrarse.
-1) Para habilitar la flag remota, edita `src/environments/environment.ts` y `src/environments/environment.prod.ts` con tus credenciales de Firebase Web App (Consola Firebase → Configuración del proyecto → General → Tus apps). Pega el objeto de configuración completo en `firebase`.
-2) En Firebase Remote Config crea el parámetro booleano `feature_bulk_complete` (valor por defecto: false) y publica. La app hace fetch con `minimumFetchIntervalMillis = 0`.
-
-## WSL en Windows: serve, tests y build
-1) Instala dependencias en WSL
-
-```
-sudo apt update
-sudo apt install -y openjdk-17-jdk
-npm ci
-```
-
-2) Ejecuta en navegador
-
-```
-npm start
-```
-
-Abre http://localhost:4200 en tu navegador de Windows (Edge/Chrome). Si `localhost` no carga, usa `http://wsl.localhost:4200`.
-
-3) Ejecutar tests (headless)
-
-```
+## 8) Tests & cobertura
+Headless vía Puppeteer (Chrome No Sandbox). Umbral global ≥ 60%.
+```bash
 npm run test:ci
 ```
 
-4) Build web (genera carpeta www/)
+## 9) Capturas / video
+- Sugeridas: lista inicial (seed), filtro por categoría, botón “Completar visibles” activo.
+- Puedes colocar imágenes en `docs/` o `src/assets/` y enlazarlas aquí.
 
+## 10) Respuestas a las 3 preguntas
+1) ¿Cómo evitas llamadas a Firebase cuando no hay credenciales reales?
+   - El servicio inyecta `RemoteConfig` de forma opcional y tiene fallbacks. Si no hay RC, `ready$` emite y los getters devuelven valores por defecto.
+2) ¿Qué decisiones tomaste para rendimiento?
+   - Standalone + OnPush, `trackBy`, listas reactivas, seeding en `APP_INITIALIZER`, y mínima lógica en plantillas. RC con fetch interval 0 solo para facilitar la demo.
+3) ¿Qué harías a continuación para producción?
+   - Subir `minimumFetchIntervalMillis` (por ejemplo 3600000), agregar e2e, analítica/observabilidad, manejo de errores más fino y virtual scroll si la lista crece mucho.
+
+---
+
+Scripts útiles:
+```bash
+npm start              # serve
+npm run build          # build web (www/)
+npm run test:ci        # tests headless + cobertura
+npm run ionic:serve    # opcional
+npm run ionic:build    # opcional
 ```
-npm run build
-```
-
-5) Android desde WSL
-Recomendado usar Android SDK en Windows y correr `ionic cordova build android` desde PowerShell/Windows para evitar problemas de USB y emuladores. Si insistes en WSL, monta el SDK por ruta /mnt/c/Users/... y configura sdk.dir.
-
-## Windows: compilar APK solo con CLI (sin Android Studio)
-1) Requisitos
-- Java JDK 17
-- Android SDK (cmdline-tools en %ANDROID_SDK_ROOT%)
-- Node.js, npm, Ionic CLI y Cordova
-
-2) Acepta licencias e instala paquetes
-
-```
-sdkmanager --licenses
-sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-```
-
-3) Añade plataforma Android (Cordova)
-
-```
-ionic cordova platform add android
-```
-
-4) Asegura local.properties con la ruta del SDK (PowerShell)
-
-```
-echo sdk.dir=%ANDROID_SDK_ROOT% | Out-File -FilePath platforms/android/local.properties -Encoding ascii
-```
-
-5) Preparar y build Debug (CLI únicamente)
-
-```
-ionic cordova prepare android
-ionic cordova build android --debug
-```
-
-Salida: `platforms/android/app/build/outputs/apk/debug/app-debug.apk`
-
-6) Build Release sin firmar (opcional)
-
-```
-ionic cordova build android --release
-```
-
-Salida: `platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk`
-
-7) Firma con apksigner (opcional)
-
-```
-keytool -genkeypair -v -keystore C:\work\my-release-key.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias mykey
-apksigner sign --ks C:\work\my-release-key.jks --ks-key-alias mykey --out C:\work\app-release-signed.apk platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
-zipalign -v 4 C:\work\app-release-signed.apk C:\work\app-release-aligned.apk
-apksigner verify C:\work\app-release-aligned.apk
-```
-
-## Capturas sugeridas
-- Lista con categorías de seed (Trabajo, Hogar, Estudio)
-- Lista con tareas seed (2 completas, 2 pendientes)
-- Filtro por categoría funcionando
-- Botón “Completar visibles” visible cuando la flag remota `feature_bulk_complete` está en true
-
-## Notas de rendimiento
-- Componentes standalone con ChangeDetectionStrategy.OnPush.
-- Listas con trackBy y flujos RxJS.
-- Evita pipes pesadas en plantillas.
-- Virtual scroll opcional para listas muy largas.
