@@ -1,0 +1,7 @@
+{
+  "name": "todo-categories",
+  "integrations": {
+    "cordova": {}
+  },
+  "type": "angular-standalone"
+}
