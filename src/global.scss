@@ -34,4 +34,17 @@
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+// Deshabilitado para forzar tema claro
+// @import '@ionic/angular/css/palettes/dark.system.css';
+
+/* Fuerza tema claro */
+:root {
+	color-scheme: light;
+	--ion-background-color: #ffffff;
+	--ion-text-color: #000000;
+}
+
+ion-content {
+	--background: #ffffff;
+	color: #000000;
+}
