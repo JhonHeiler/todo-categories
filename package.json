@@ -12,7 +12,11 @@
     "test:ci": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage",
     "ionic:serve": "ionic serve",
     "ionic:build": "ionic build",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "build:web": "ng build",
+    "build:mobile": "ng build --configuration=production --base-href ./ --output-path=www && node tools/flatten-www.js && npx cordova prepare android",
+    "android:debug": "npx cordova build android --debug",
+    "android:release": "npx cordova build android --release"
   },
   "private": true,
   "dependencies": {
