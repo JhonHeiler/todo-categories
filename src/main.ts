@@ -12,26 +12,37 @@ import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideRemoteConfig, getRemoteConfig } from '@angular/fire/remote-config';
 import { fetchAndActivate } from 'firebase/remote-config';
 
+console.log('[APP] bootstrap start');
 bootstrapApplication(AppComponent, {
   providers: [
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
     provideIonicAngular(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     importProvidersFrom(IonicStorageModule.forRoot()),
-    provideFirebaseApp(() => initializeApp(environment.firebase)),
+    provideFirebaseApp(() => {
+      try {
+        const app = initializeApp(environment.firebase);
+        console.log('[APP] Firebase inicializado');
+        return app;
+      } catch (e) {
+        console.error('[APP] Error inicializando Firebase', e);
+        throw e;
+      }
+    }),
     provideRemoteConfig(() => {
       const rc = getRemoteConfig();
-      // Ensure fast updates during development/testing
       rc.settings.minimumFetchIntervalMillis = 0;
-      // Try to warm up config on startup; ignore failures
-      try { fetchAndActivate(rc).catch(() => void 0); } catch {}
+      fetchAndActivate(rc).then(() => {
+        console.log('[APP] Remote Config activado');
+      }).catch(err => console.warn('[APP] Remote Config fetch error', err));
       return rc;
     }),
     {
       provide: APP_INITIALIZER,
-      useFactory: (seed: SeedService) => () => seed.runOnce(),
+      useFactory: (seed: SeedService) => () => seed.runOnce().then(() => console.log('[APP] Seed completado')).catch(e => console.error('[APP] Seed error', e)),
       deps: [SeedService],
       multi: true
     }
   ],
-});
+}).then(() => console.log('[APP] bootstrap success'))
+  .catch(err => console.error('[APP] bootstrap failed', err));
