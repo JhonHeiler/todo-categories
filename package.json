@@ -9,7 +9,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-  "test:ci": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage",
     "ionic:serve": "ionic serve",
     "ionic:build": "ionic build",
     "lint": "ng lint"
@@ -50,6 +50,7 @@
     "@types/jasmine": "~5.1.0",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
+    "cordova-android": "^14.0.1",
     "eslint": "^9.16.0",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jsdoc": "^48.2.1",
@@ -64,5 +65,11 @@
     "puppeteer": "^23.11.1",
     "typescript": "~5.8.0"
   },
-  "description": "An Ionic project"
+  "description": "An Ionic project",
+  "cordova": {
+    "plugins": {},
+    "platforms": [
+      "android"
+    ]
+  }
 }
